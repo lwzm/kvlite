@@ -5,13 +5,13 @@ from setuptools import setup
 name = "kvlite"
 author = "lwzm"
 
-with open("README.md") as f:
+with open("README") as f:
     long_description = f.read()
 
 
 setup(
     name=name,
-    version="0.3",
+    version="0.4",
     description="kvlite",
     long_description=long_description,
     long_description_content_type="text/markdown",
