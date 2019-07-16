@@ -14,6 +14,8 @@ import time
 data_dir = pathlib.Path(os.getenv("KVLITE_DATA", ".data"))
 data_dir.mkdir(parents=True, exist_ok=True)
 
+_rc = pathlib.Path.home() / ".sqliterc"
+_rc = _rc.exists() and _rc.read_text()
 
 table_template = """
 create table "{}" (
@@ -26,6 +28,8 @@ create table "{}" (
 class Instances(dict):
     def __missing__(self, key):
         conn = sqlite3.connect(data_dir / key)
+        if _rc:
+            conn.executescript(_rc)
         self[key] = conn
         return conn
 
