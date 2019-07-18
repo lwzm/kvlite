@@ -38,6 +38,9 @@ class KV(object):
     def __init__(self):
         self._instances = Instances()
 
+    def __len__(self):
+        return len(self._instances)
+
     def branch(self, key) -> str:
         "override this"
         return "this_is_test.db"
@@ -93,4 +96,5 @@ if __name__ == '__main__':
             db.get('t', 2)
         db.set_many('l', list(zip(range(10000), range(10000, 20000))))
         print(time.time() - t0)
+        print(len(db))
     test()
