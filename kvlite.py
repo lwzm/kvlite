@@ -11,9 +11,6 @@ import sys
 import time
 
 
-data_dir = pathlib.Path(os.getenv("KVLITE_DATA", ".data"))
-data_dir.mkdir(parents=True, exist_ok=True)
-
 _rc = pathlib.Path.home() / ".sqliterc"
 _rc = _rc.exists() and _rc.read_text()
 
@@ -27,7 +24,7 @@ create table "{}" (
 
 class Instances(dict):
     def __missing__(self, key):
-        conn = sqlite3.connect(data_dir / key)
+        conn = sqlite3.connect(key)
         if _rc:
             conn.executescript(_rc)
         self[key] = conn
@@ -43,30 +40,28 @@ class KV(object):
 
     def branch(self, key) -> str:
         "override this"
-        return "default.db"
+        return ".kvlite.db"
 
     def __getitem__(self, key):
         if isinstance(key, tuple):
-            key, space = key
+            space, key = key
             return self.get(key, space)
         return self.get(key)
 
     def __setitem__(self, key, value):
         if isinstance(key, tuple):
-            key, space = key
+            space, keys = key
             return self.set(key, value, space)
         return self.set(key, value)
 
     def _execute(self, table_name, cursor, sql, *args):
-        while True:
-            try:
-                cursor.execute(sql, args)
-                break
-            except sqlite3.OperationalError as e:
-                if e.args[0].startswith("no such table"):
-                    cursor.execute(table_template(table_name))
-                else:
-                    raise e
+        try:
+            cursor.execute(sql, args)
+        except sqlite3.OperationalError as e:
+            if not e.args[0].startswith("no such table"):
+                raise
+            cursor.execute(table_template(table_name))
+            cursor.execute(sql, args)
 
     def get(self, key, space="_"):
         sql = f"""select v from "{space}" where k = ?"""
@@ -77,7 +72,7 @@ class KV(object):
             return o[0]
 
     def set(self, key, value, space="_"):
-        sql = f"""insert or replace into "{space}" (k, v) values(?, ?)"""
+        sql = f"""replace into "{space}" (k, v) values(?, ?)"""
         conn = self._instances[self.branch(key)]
         self._execute(space, conn.cursor(), sql, key, value)
         conn.commit()
@@ -86,7 +81,7 @@ class KV(object):
         'todo'
 
     def set_many(self, lst, space="_"):
-        sql = f"""insert or replace into "{space}" (k, v) values(?, ?)"""
+        sql = f"""replace into "{space}" (k, v) values(?, ?)"""
         todo = set()
         for key, value in lst:
             conn = self._instances[self.branch(key)]
@@ -103,7 +98,7 @@ if __name__ == '__main__':
         db.set('1', 2, "t")
         db.set(b'1', 3, "t")
         print(db.get('1', "t"))
-        print(db['1', "t"])
+        print(db["t", '1'])
         db[1] = 2
         print(db[1])
         t0 = time.time()
