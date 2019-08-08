@@ -11,7 +11,7 @@ with open("README") as f:
 
 setup(
     name=name,
-    version="0.7",
+    version="0.8",
     description="kvlite",
     long_description=long_description,
     long_description_content_type="text/markdown",

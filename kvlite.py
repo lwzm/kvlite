@@ -18,7 +18,7 @@ table_template = """
 create table "{}" (
     k primary key,
     v
-)
+) without rowid
 """.format
 
 
