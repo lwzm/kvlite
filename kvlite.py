@@ -11,6 +11,7 @@ import sys
 import time
 
 
+default = "_"
 _rc = pathlib.Path.home() / ".sqliterc"
 _rc = _rc.exists() and _rc.read_text()
 
@@ -24,7 +25,7 @@ create table "{}" (
 
 class Instances(dict):
     def __missing__(self, key):
-        conn = sqlite3.connect(key)
+        conn = sqlite3.connect(key, 60.0)
         if _rc:
             conn.executescript(_rc)
         self[key] = conn
@@ -63,7 +64,7 @@ class KV(object):
             cursor.execute(table_template(table_name))
             cursor.execute(sql, args)
 
-    def get(self, key, space="_"):
+    def get(self, key, space=default):
         sql = f"""select v from "{space}" where k = ?"""
         c = self._instances[self.branch(key)].cursor()
         self._execute(space, c, sql, key)
@@ -71,25 +72,33 @@ class KV(object):
         if o:
             return o[0]
 
-    def set(self, key, value, space="_"):
+    def set(self, key, value, space=default):
         sql = f"""replace into "{space}" (k, v) values(?, ?)"""
         conn = self._instances[self.branch(key)]
         self._execute(space, conn.cursor(), sql, key, value)
         conn.commit()
 
-    def get_many(self, keys, space="_"):
+    def get_many(self, keys, space=default):
         'todo'
 
-    def set_many(self, lst, space="_"):
+    def set_many(self, iterable, space=default):
         sql = f"""replace into "{space}" (k, v) values(?, ?)"""
         todo = set()
-        for key, value in lst:
+        for key, value in iterable:
             conn = self._instances[self.branch(key)]
             todo.add(conn)
             c = conn.cursor()
             self._execute(space, c, sql, key, value)
         for conn in todo:
             conn.commit()
+
+    def patch(self, iterable, space=default):
+        """
+        """
+
+    def sync(self, iterable, space=default):
+        """
+        """
 
 
 if __name__ == '__main__':
