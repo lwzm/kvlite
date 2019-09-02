@@ -28,8 +28,8 @@ class Instances(dict):
         conn = sqlite3.connect(key, 60.0)
         if _rc:
             conn.executescript(_rc)
-        self[key] = conn
-        return conn
+        self[key] = conn, conn.cursor()
+        return self[key]
 
 
 class KV(object):
@@ -38,10 +38,6 @@ class KV(object):
 
     def __len__(self):
         return len(self._instances)
-
-    def branch(self, key) -> str:
-        "override this"
-        return ".kvlite.db"
 
     def __getitem__(self, key):
         if isinstance(key, tuple):
@@ -55,6 +51,13 @@ class KV(object):
             return self.set(key, value, space)
         return self.set(key, value)
 
+    def branch(self, key) -> str:
+        "override this"
+        return ".kvlite.db"
+
+    def _pick(self, key):
+        return self._instances[self.branch(key)]
+
     def _execute(self, table_name, cursor, sql, *args):
         try:
             cursor.execute(sql, args)
@@ -66,7 +69,7 @@ class KV(object):
 
     def get(self, key, space=default):
         sql = f"""select v from "{space}" where k = ?"""
-        c = self._instances[self.branch(key)].cursor()
+        _, c = self._pick(key)
         self._execute(space, c, sql, key)
         o = c.fetchone()
         if o:
@@ -74,8 +77,8 @@ class KV(object):
 
     def set(self, key, value, space=default):
         sql = f"""replace into "{space}" (k, v) values(?, ?)"""
-        conn = self._instances[self.branch(key)]
-        self._execute(space, conn.cursor(), sql, key, value)
+        conn, c = self._pick(key)
+        self._execute(space, c, sql, key, value)
         conn.commit()
 
     def get_many(self, keys, space=default):
@@ -85,9 +88,8 @@ class KV(object):
         sql = f"""replace into "{space}" (k, v) values(?, ?)"""
         todo = set()
         for key, value in iterable:
-            conn = self._instances[self.branch(key)]
+            conn, c = self._pick(key)
             todo.add(conn)
-            c = conn.cursor()
             self._execute(space, c, sql, key, value)
         for conn in todo:
             conn.commit()
